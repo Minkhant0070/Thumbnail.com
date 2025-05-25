@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Thumbnail Downloader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000000; /* Black background */
+            min-height: 100vh; /* Ensure body takes at least full viewport height */
+        }
+
+        /* Custom spinner animation */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #2563eb;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Fade-in/Fade-out for sections */
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+        }
+        .fade-enter-from, .fade-leave-to {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        .fade-enter-to, .fade-leave-from {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Message box animation */
+        .message-box-enter-active, .message-box-leave-active {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+        .message-box-enter-from, .message-box-leave-to {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        .message-box-enter-to, .message-box-leave-from {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Floating YouTube Icons */
+        .floating-icon {
+            position: absolute;
+            font-size: 6rem; /* Even larger icons for better visibility */
+            color: rgba(255, 0, 0, 0.3); /* Red color with base opacity */
+            filter: blur(3px); /* Slightly less blur */
+            opacity: 0; /* Start hidden */
+            pointer-events: none; /* Do not interfere with clicks */
+            animation: floatAndFade var(--duration) infinite ease-in-out;
+            z-index: 0; /* Above the black background but below the main container */
+        }
+
+        @keyframes floatAndFade {
+            0% {
+                transform: translate(var(--start-x), var(--start-y)) scale(0.7);
+                opacity: 0;
+            }
+            25% {
+                opacity: 0.50; /* Increased visibility */
+            }
+            50% {
+                opacity: 0.70; /* Peak visibility */
+                transform: translate(var(--mid-x), var(--mid-y)) scale(1.1);
+            }
+            75% {
+                opacity: 0.50; /* Increased visibility */
+            }
+            100% {
+                transform: translate(var(--end-x), var(--end-y)) scale(0.7);
+                opacity: 0;
+            }
+        }
+        .floating-icon svg {
+            width: 1em;
+            height: 1em;
+            fill: currentColor;
+        }
+
+        /* Color swatches */
+        .color-swatch {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.1s ease-in-out, border-color 0.1s ease-in-out;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .color-swatch:hover {
+            transform: scale(1.05);
+        }
+        .color-swatch.selected {
+            border-color: #2563eb; /* Blue border for selected color */
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.5); /* Blue glow for selected */
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4 sm:p-6 md:p-8 relative">
+
+    <div id="floatingIconsContainer" class="absolute inset-0 overflow-hidden">
+        </div>
+
+    <div id="mainContainer" class="bg-white p-6 sm:p-8 md:p-10 rounded-xl shadow-2xl w-full max-w-2xl flex flex-col items-center gap-6 relative z-10">
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-4 text-center">YouTube Thumbnail Downloader</h1>
+        <p class="text-gray-600 text-center mb-6">YouTube video link မှ thumbnail များကို အလွယ်တကူ download လုပ်ပါ။</p>
+
+        <div class="w-full space-y-4">
+            <div>
+                <label for="youtubeLink" class="block text-sm font-medium text-gray-700 mb-1">YouTube Video Link ထည့်ပါ</label>
+                <input type="text" id="youtubeLink" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out" placeholder="ဥပမာ: https://www.youtube.com/watch?v=dQw4w9WgXcQ">
+            </div>
+
+            <div>
+                <label for="thumbnailQualitySelect" class="block text-sm font-medium text-gray-700 mb-1">Image Quality ရွေးချယ်ပါ</label>
+                <select id="thumbnailQualitySelect" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out">
+                    </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Box Theme Color ရွေးချယ်ပါ</label>
+                <div id="boxThemeSwatches" class="flex flex-wrap gap-2">
+                    </div>
+                <input type="hidden" id="mainBoxColor" value="#ffffff"> </div>
+
+            <div class="flex flex-col sm:flex-row gap-4">
+                <button id="clearInputBtn" class="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 transition duration-200 ease-in-out font-semibold">
+                    ရှင်းလင်းရန်
+                </button>
+            </div>
+        </div>
+
+        <div id="loadingSpinner" class="hidden flex justify-center items-center py-8">
+            <div class="spinner"></div>
+            <span class="ml-3 text-gray-600">Thumbnail ရယူနေပါသည်...</span>
+        </div>
+
+        <div id="messageArea" class="w-full text-center text-sm px-4 py-2 rounded-lg transition-all duration-300 hidden"></div>
+
+        <div id="thumbnailSection" class="w-full hidden flex flex-col items-center gap-4 mt-6 fade-leave-to">
+            <h2 class="text-xl font-semibold text-gray-800">Thumbnail Preview</h2>
+            <div class="border border-gray-300 bg-gray-100 p-2 rounded-lg shadow-inner max-w-full overflow-hidden">
+                <img id="thumbnailPreview" src="" alt="YouTube Thumbnail Preview" class="max-w-full h-auto rounded-md">
+            </div>
+            <a id="downloadThumbnailBtn" href="#" download="youtube_thumbnail.jpg" class="w-full sm:w-auto bg-green-600 text-white py-3 px-6 rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition duration-200 ease-in-out font-semibold text-center">
+                Thumbnail Download လုပ်ရန်
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements များကို ရယူခြင်း
+        const youtubeLinkInput = document.getElementById('youtubeLink');
+        const thumbnailQualitySelect = document.getElementById('thumbnailQualitySelect');
+        const messageArea = document.getElementById('messageArea');
+        const thumbnailSection = document.getElementById('thumbnailSection');
+        const thumbnailPreview = document.getElementById('thumbnailPreview');
+        const downloadThumbnailBtn = document.getElementById('downloadThumbnailBtn');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const clearInputBtn = document.getElementById('clearInputBtn');
+        const mainContainer = document.getElementById('mainContainer'); // Main UI box
+        const boxThemeSwatchesContainer = document.getElementById('boxThemeSwatches');
+        const mainBoxColorInput = document.getElementById('mainBoxColor'); // Hidden input for main box color
+        const floatingIconsContainer = document.getElementById('floatingIconsContainer'); // Container for floating icons
+
+        // Thumbnail quality များကို အမည်နှင့် file name ပါဝင်သော Object array အဖြစ် သတ်မှတ်ခြင်း
+        const thumbnailQualities = [
+            { name: 'အမြင့်ဆုံး (Max Quality - 1280x720/1920x1080)', file: 'maxresdefault' },
+            { name: 'Standard HD (640x480)', file: 'sddefault' },
+            { name: 'အရည်အသွေးမြင့် (480x360)', file: 'hqdefault' },
+            { name: 'အလယ်အလတ် (320x180)', file: 'mqdefault' },
+            { name: 'အနိမ့်ဆုံး (120x90)', file: 'default' }
+        ];
+
+        // Main container theme colors (ပိုမိုစုံလင်သော အရောင်များ)
+        const mainBoxThemeColors = [
+            '#ffffff', // White
+            '#f0f9ff', // Sky Blue (light)
+            '#fef2f2', // Red (light)
+            '#f0fdf4', // Green (light)
+            '#fdf2f8', // Pink (light)
+            '#fffbeb', // Yellow (light)
+            '#e2e8f0', // Gray (light)
+            '#dbeafe', // Blue (light)
+            '#ffe4e6', // Rose (very light)
+            '#e0f2fe', // Light Blue
+            '#dcfce7', // Light Green
+            '#fef9c3', // Light Yellow
+            '#f3e8ff', // Light Purple
+            '#fee2e2', // Light Red
+            '#ecfdf5', // Teal (very light)
+            '#fefce8', // Cream
+            '#f5f5f4', // Off-white
+            '#cffafe', // Cyan (very light)
+            '#bfdbfe', // Lighter Blue
+        ];
+
+        let debounceTimeout; // Debounce for input event
+        let currentBlobUrl = null; // Store the current Blob URL for cleanup
+
+        /**
+         * YouTube video URL မှ video ID ကို ထုတ်ယူပေးသော function
+         * အမျိုးမျိုးသော YouTube URL format များကို ကိုင်တွယ်နိုင်သည်
+         * @param {string} url - YouTube video URL
+         * @returns {string|null} video ID သို့မဟုတ် null (မတွေ့ပါက)
+         */
+        function getYouTubeVideoId(url) {
+            let videoId = null;
+            const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/;
+            const match = url.match(regex);
+            if (match && match[1]) {
+                videoId = match[1];
+            }
+            return videoId;
+        }
+
+        /**
+         * မက်ဆေ့ချ် box ကို ပြသသည် သို့မဟုတ် ဝှက်ထားသည်။
+         * @param {string} message - ပြသလိုသော မက်ဆေ့ချ်
+         * @param {string} type - 'error' သို့မဟုတ် 'info'
+         */
+        function showMessageBox(message, type = 'info') {
+            messageArea.textContent = message;
+            messageArea.classList.remove('hidden', 'text-red-500', 'text-green-500', 'bg-red-100', 'bg-green-100', 'message-box-enter-from', 'message-box-leave-to');
+            messageArea.classList.add('message-box-enter-active'); // For fade-in animation
+
+            if (type === 'error') {
+                messageArea.classList.add('text-red-500', 'bg-red-100');
+            } else {
+                messageArea.classList.add('text-green-500', 'bg-green-100');
+            }
+            setTimeout(() => messageArea.classList.remove('message-box-enter-active'), 300); // Remove active class after animation
+        }
+
+        /**
+         * မက်ဆေ့ချ် box ကို ဝှက်ထားသည်။
+         */
+        function hideMessageBox() {
+            messageArea.classList.add('message-box-leave-to'); // For fade-out animation
+            setTimeout(() => {
+                messageArea.classList.add('hidden');
+                messageArea.classList.remove('message-box-leave-to');
+                messageArea.textContent = '';
+            }, 300); // Match animation duration
+        }
+
+        /**
+         * ယခင် Blob URL ကို ဖျက်သိမ်းပြီး memory ကို ပြန်လည်လွတ်ပေးသည်။
+         */
+        function revokePreviousBlobUrl() {
+            if (currentBlobUrl) {
+                URL.revokeObjectURL(currentBlobUrl);
+                currentBlobUrl = null;
+            }
+        }
+
+        /**
+         * Thumbnail ကို URL မှ စစ်ဆေးပြီး ပြသပေးသည်။
+         * @param {string} videoId - YouTube video ID
+         * @param {string} selectedQualityFile - ရွေးချယ်ထားသော quality ၏ file name (ဥပမာ: 'hqdefault')
+         */
+        async function updateThumbnailPreviewAndDownloadLink(videoId, selectedQualityFile) {
+            // Hide previous thumbnail and message, show loading spinner
+            thumbnailSection.classList.add('hidden', 'fade-leave-to');
+            hideMessageBox();
+            loadingSpinner.classList.remove('hidden');
+            revokePreviousBlobUrl(); // ယခင် Blob URL ကို ဖျက်သိမ်းခြင်း
+
+            if (!videoId) {
+                showMessageBox("မှန်ကန်သော YouTube လင့်ခ် မဟုတ်ပါ။", 'error');
+                loadingSpinner.classList.add('hidden');
+                return;
+            }
+
+            // Correct YouTube thumbnail URL format
+            const thumbnailUrl = `http://img.youtube.com/vi/${videoId}/${selectedQualityFile}.jpg`;
+            console.log("Generated Thumbnail URL:", thumbnailUrl); // Debugging: Check the generated URL
+
+            try {
+                // Fetch the image as a Blob to enable direct download
+                const response = await fetch(thumbnailUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const imageBlob = await response.blob();
+
+                // Create a Blob URL for the download link
+                currentBlobUrl = URL.createObjectURL(imageBlob);
+
+                // For preview, we can still use the direct URL or the Blob URL
+                thumbnailPreview.src = thumbnailUrl; // Using direct URL for preview is often faster
+                downloadThumbnailBtn.href = currentBlobUrl; // Use Blob URL for direct download
+                downloadThumbnailBtn.download = `youtube_thumbnail_${selectedQualityFile}.jpg`;
+
+                loadingSpinner.classList.add('hidden');
+                thumbnailSection.classList.remove('hidden', 'fade-leave-to');
+                thumbnailSection.classList.add('fade-enter-from'); // Trigger fade-in
+                setTimeout(() => thumbnailSection.classList.remove('fade-enter-from'), 10); // Small delay for transition to apply
+                hideMessageBox(); // အောင်မြင်စွာ ပြသနိုင်ပါက မက်ဆေ့ချ်ကို ဖျောက်ခြင်း
+
+            } catch (error) {
+                console.error(`Failed to load thumbnail for ${selectedQualityFile}:`, error);
+                loadingSpinner.classList.add('hidden');
+
+                // If the selected quality failed, try to load the default quality as a fallback for preview and download
+                if (selectedQualityFile !== 'default') {
+                    const fallbackThumbnailUrl = `http://img.youtube.com/vi/${videoId}/default.jpg`;
+                    try {
+                        const fallbackResponse = await fetch(fallbackThumbnailUrl);
+                        if (!fallbackResponse.ok) {
+                            throw new Error(`Fallback HTTP error! status: ${fallbackResponse.status}`);
+                        }
+                        const fallbackImageBlob = await fallbackResponse.blob();
+                        revokePreviousBlobUrl(); // Revoke any previous Blob URL before creating a new one
+                        currentBlobUrl = URL.createObjectURL(fallbackImageBlob);
+
+                        thumbnailPreview.src = fallbackThumbnailUrl;
+                        downloadThumbnailBtn.href = currentBlobUrl;
+                        downloadThumbnailBtn.download = `youtube_thumbnail_default.jpg`;
+                        thumbnailSection.classList.remove('hidden', 'fade-leave-to');
+                        thumbnailSection.classList.add('fade-enter-from');
+                        setTimeout(() => thumbnailSection.classList.remove('fade-enter-from'), 10);
+                        showMessageBox(`ရွေးချယ်ထားသော quality ကို မရရှိနိုင်ပါ။ အနိမ့်ဆုံး quality ကို ပြသထားပါသည်။`, 'info');
+                    } catch (fallbackError) {
+                        console.error("Failed to load fallback thumbnail:", fallbackError);
+                        showMessageBox("Thumbnail ရှာမတွေ့ပါ သို့မဟုတ် လင့်ခ်မှန်ကန်ကြောင်း စစ်ဆေးပါ။", 'error');
+                        thumbnailSection.classList.add('hidden');
+                    }
+                } else {
+                    showMessageBox("Thumbnail ရှာမတွေ့ပါ သို့မဟုတ် လင့်ခ်မှန်ကန်ကြောင်း စစ်ဆေးပါ။", 'error');
+                    thumbnailSection.classList.add('hidden');
+                }
+            }
+        }
+
+        /**
+         * Quality ရွေးချယ်စရာများကို Dropdown ထဲသို့ ထည့်သွင်းပေးခြင်း
+         */
+        function populateQualitySelect() {
+            thumbnailQualitySelect.innerHTML = ''; // Clear existing options
+            thumbnailQualities.forEach(quality => {
+                const option = document.createElement('option');
+                option.value = quality.file;
+                option.textContent = quality.name;
+                thumbnailQualitySelect.appendChild(option);
+            });
+            // Default အနေဖြင့် အမြင့်ဆုံး quality ကို ရွေးချယ်ထားခြင်း
+            thumbnailQualitySelect.value = thumbnailQualities[0].file;
+        }
+
+        /**
+         * Main container background color swatches များကို ဖန်တီးပေးခြင်း
+         */
+        function populateBoxThemeSwatches() {
+            boxThemeSwatchesContainer.innerHTML = '';
+            mainBoxThemeColors.forEach(color => {
+                const swatch = document.createElement('div');
+                swatch.className = 'color-swatch';
+                swatch.style.backgroundColor = color;
+                swatch.dataset.color = color;
+
+                if (mainBoxColorInput.value === color) {
+                    swatch.classList.add('selected');
+                    mainContainer.style.backgroundColor = color; // Apply initial color
+                }
+
+                swatch.addEventListener('click', () => {
+                    Array.from(boxThemeSwatchesContainer.children).forEach(s => s.classList.remove('selected'));
+                    swatch.classList.add('selected');
+                    mainBoxColorInput.value = color;
+                    mainContainer.style.backgroundColor = color; // Apply selected color
+                });
+                boxThemeSwatchesContainer.appendChild(swatch);
+            });
+        }
+
+        /**
+         * Input များကို ရှင်းလင်းပြီး UI ကို reset ပြန်လုပ်ပေးခြင်း
+         */
+        function clearInputAndResetUI() {
+            youtubeLinkInput.value = '';
+            thumbnailPreview.src = '';
+            thumbnailSection.classList.add('hidden', 'fade-leave-to');
+            hideMessageBox();
+            loadingSpinner.classList.add('hidden');
+            revokePreviousBlobUrl();
+            // Reset quality select to default
+            thumbnailQualitySelect.value = thumbnailQualities[0].file;
+            // Reset main box color to default (white)
+            mainBoxColorInput.value = mainBoxThemeColors[0];
+            mainContainer.style.backgroundColor = mainBoxThemeColors[0];
+            // Update selected class for theme swatches
+            Array.from(boxThemeSwatchesContainer.children).forEach(s => {
+                if (s.dataset.color === mainBoxThemeColors[0]) {
+                    s.classList.add('selected');
+                } else {
+                    s.classList.remove('selected');
+                }
+            });
+        }
+
+        /**
+         * Floating YouTube icons များကို ဖန်တီးပြီး animation ပေးခြင်း
+         */
+        function createFloatingIcons() {
+            const iconSvg = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512">
+                    <path d="M549.655 124.083c-6.281-23.65-24.787-42.207-48.284-48.427C458.787 64 288 64 288 64S117.213 64 74.629 75.656c-23.497 6.22-42.003 24.776-48.284 48.427C16 163.535 16 256 16 256s0 92.465 10.345 131.917c6.281 23.65 24.787 42.207 48.284 48.427C117.213 448 288 448 288 448s170.787 0 213.371-11.656c23.497-6.22 42.003-24.776 48.284-48.427C560 348.465 560 256 560 256s0-92.465-10.345-131.917zM272 360V152l104 104-104 104z"/>
+                </svg>
+            `; // YouTube Play Button SVG
+
+            for (let i = 0; i < 10; i++) { // Create 10 floating icons
+                const iconDiv = document.createElement('div');
+                iconDiv.className = 'floating-icon';
+                iconDiv.innerHTML = iconSvg;
+
+                // Generate random start, mid, and end points for animation (in vw/vh)
+                // Ensure they start off-screen or at edges and move across the viewport
+                const startX = (Math.random() * 150) - 25; // -25vw to 125vw
+                const startY = (Math.random() * 150) - 25; // -25vh to 125vh
+
+                const midX = (Math.random() * 150) - 25;
+                const midY = (Math.random() * 150) - 25;
+
+                const endX = (Math.random() * 150) - 25;
+                const endY = (Math.random() * 150) - 25;
+
+                const delay = Math.random() * 10; // 0 to 10 seconds delay
+                const duration = 15 + Math.random() * 10; // 15 to 25 seconds duration
+
+                iconDiv.style.setProperty('--start-x', `${startX}vw`);
+                iconDiv.style.setProperty('--start-y', `${startY}vh`);
+                iconDiv.style.setProperty('--mid-x', `${midX}vw`);
+                iconDiv.style.setProperty('--mid-y', `${midY}vh`);
+                iconDiv.style.setProperty('--end-x', `${endX}vw`);
+                iconDiv.style.setProperty('--end-y', `${endY}vh`);
+                iconDiv.style.setProperty('--duration', `${duration}s`); // Set duration as CSS variable
+                iconDiv.style.animationDelay = `${delay}s`;
+
+                floatingIconsContainer.appendChild(iconDiv);
+            }
+        }
+
+
+        // Event Listeners
+
+        // YouTube Link Input တွင် စာရိုက်တိုင်း (debounce ဖြင့်) thumbnail ကို ပြသရန်
+        youtubeLinkInput.addEventListener('input', () => {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(() => {
+                const youtubeLink = youtubeLinkInput.value.trim();
+                const videoId = getYouTubeVideoId(youtubeLink);
+                if (videoId) {
+                    const selectedQuality = thumbnailQualitySelect.value;
+                    updateThumbnailPreviewAndDownloadLink(videoId, selectedQuality);
+                } else {
+                    // Hide thumbnail and message, clear Blob URL if input is invalid/empty
+                    thumbnailSection.classList.add('hidden', 'fade-leave-to');
+                    revokePreviousBlobUrl();
+                    loadingSpinner.classList.add('hidden');
+                    if (youtubeLink) { // Only show error if there's text but it's invalid
+                        showMessageBox("မှန်ကန်သော YouTube လင့်ခ် မဟုတ်ပါ။", 'error');
+                    } else {
+                        hideMessageBox(); // Clear message if input is empty
+                    }
+                }
+            }, 500); // 500ms debounce
+        });
+
+        // Quality Select ပြောင်းလဲသောအခါ thumbnail ကို ပြန်လည်ပြသရန်
+        thumbnailQualitySelect.addEventListener('change', () => {
+            const youtubeLink = youtubeLinkInput.value.trim();
+            const videoId = getYouTubeVideoId(youtubeLink);
+            if (videoId) {
+                const selectedQuality = thumbnailQualitySelect.value;
+                updateThumbnailPreviewAndDownloadLink(videoId, selectedQuality);
+            }
+        });
+
+        // Clear Input Button
+        clearInputBtn.addEventListener('click', clearInputAndResetUI);
+
+        // Page စတင် load လုပ်သောအခါ
+        window.onload = () => {
+            populateQualitySelect(); // Quality select options များကို ထည့်သွင်းခြင်း
+            populateBoxThemeSwatches(); // Main box theme swatches များကို ထည့်သွင်းခြင်း
+            createFloatingIcons(); // Floating icons များကို ဖန်တီးခြင်း
+            clearInputAndResetUI(); // Initial UI cleanup
+        };
+
+        // Page ပိတ်သောအခါ သို့မဟုတ် refresh လုပ်သောအခါ Blob URL ကို ရှင်းလင်းရန်
+        window.addEventListener('beforeunload', revokePreviousBlobUrl);
+    </script>
+</body>
+</html>
+
