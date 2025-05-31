@@ -3,506 +3,580 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Thumbnail Downloader</title>
+    <title>Links Saver</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #000000; /* Black background */
-            min-height: 100vh; /* Ensure body takes at least full viewport height */
+            background: linear-gradient(135deg, #667eea, #764ba2); /* Purple-blue gradient background */
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
         }
 
         /* Custom spinner animation */
         .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-left-color: #2563eb;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-left-color: #ffffff;
             border-radius: 50%;
             width: 32px;
             height: 32px;
             animation: spin 1s linear infinite;
         }
+        .spinner-sm {
+            width: 20px;
+            height: 20px;
+            border-width: 3px;
+            border-color: rgba(255, 255, 255, 0.6);
+            border-left-color: #ffffff;
+        }
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
 
-        /* Fade-in/Fade-out for sections */
-        .fade-enter-active, .fade-leave-active {
-            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+        /* Fade-in animation for messages and sections */
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
         }
-        .fade-enter-from, .fade-leave-to {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-        .fade-enter-to, .fade-leave-from {
-            opacity: 1;
-            transform: translateY(0);
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Message box animation */
-        .message-box-enter-active, .message-box-leave-active {
-            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        /* Scale-in animation for message box */
+        .animate-scale-in {
+            animation: scaleIn 0.3s ease-out forwards;
         }
-        .message-box-enter-from, .message-box-leave-to {
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-        .message-box-enter-to, .message-box-leave-from {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        /* Floating YouTube Icons */
-        .floating-icon {
-            position: absolute;
-            font-size: 6rem; /* Even larger icons for better visibility */
-            color: rgba(255, 0, 0, 0.3); /* Red color with base opacity */
-            filter: blur(3px); /* Slightly less blur */
-            opacity: 0; /* Start hidden */
-            pointer-events: none; /* Do not interfere with clicks */
-            animation: floatAndFade var(--duration) infinite ease-in-out;
-            z-index: 0; /* Above the black background but below the main container */
-        }
-
-        @keyframes floatAndFade {
-            0% {
-                transform: translate(var(--start-x), var(--start-y)) scale(0.7);
-                opacity: 0;
-            }
-            25% {
-                opacity: 0.50; /* Increased visibility */
-            }
-            50% {
-                opacity: 0.70; /* Peak visibility */
-                transform: translate(var(--mid-x), var(--mid-y)) scale(1.1);
-            }
-            75% {
-                opacity: 0.50; /* Increased visibility */
-            }
-            100% {
-                transform: translate(var(--end-x), var(--end-y)) scale(0.7);
-                opacity: 0;
-            }
-        }
-        .floating-icon svg {
-            width: 1em;
-            height: 1em;
-            fill: currentColor;
-        }
-
-        /* Color swatches */
-        .color-swatch {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: transform 0.1s ease-in-out, border-color 0.1s ease-in-out;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .color-swatch:hover {
-            transform: scale(1.05);
-        }
-        .color-swatch.selected {
-            border-color: #2563eb; /* Blue border for selected color */
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.5); /* Blue glow for selected */
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
         }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4 sm:p-6 md:p-8 relative">
+<body>
+    <div id="mainAppContainer" class="bg-white p-6 sm:p-8 md:p-10 rounded-xl shadow-2xl w-full max-w-2xl flex flex-col gap-6">
+        <h1 class="text-4xl font-extrabold text-center text-gray-900">Links Saver</h1>
+        <p class="text-center text-gray-600 mb-4">သင်၏အရေးကြီးသော links များကို လုံခြုံစွာ သိမ်းဆည်းပါ။</p>
 
-    <div id="floatingIconsContainer" class="absolute inset-0 overflow-hidden">
+        <div id="mainLoadingSpinner" class="flex flex-col items-center justify-center py-8">
+            <div class="spinner mb-4"></div>
+            <p class="text-lg text-gray-700">Authenticating...</p>
         </div>
 
-    <div id="mainContainer" class="bg-white p-6 sm:p-8 md:p-10 rounded-xl shadow-2xl w-full max-w-2xl flex flex-col items-center gap-6 relative z-10">
-        <h1 class="text-3xl font-extrabold text-gray-900 mb-4 text-center">YouTube Thumbnail Downloader</h1>
-        <p class="text-gray-600 text-center mb-6">YouTube video link မှ thumbnail များကို အလွယ်တကူ download လုပ်ပါ။</p>
-
-        <div class="w-full space-y-4">
-            <div>
-                <label for="youtubeLink" class="block text-sm font-medium text-gray-700 mb-1">YouTube Video Link ထည့်ပါ</label>
-                <input type="text" id="youtubeLink" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out" placeholder="ဥပမာ: https://www.youtube.com/watch?v=dQw4w9WgXcQ">
-            </div>
-
-            <div>
-                <label for="thumbnailQualitySelect" class="block text-sm font-medium text-gray-700 mb-1">Image Quality ရွေးချယ်ပါ</label>
-                <select id="thumbnailQualitySelect" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out">
-                    </select>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Box Theme Color ရွေးချယ်ပါ</label>
-                <div id="boxThemeSwatches" class="flex flex-wrap gap-2">
-                    </div>
-                <input type="hidden" id="mainBoxColor" value="#ffffff"> </div>
-
-            <div class="flex flex-col sm:flex-row gap-4">
-                <button id="clearInputBtn" class="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 transition duration-200 ease-in-out font-semibold">
-                    ရှင်းလင်းရန်
-                </button>
-            </div>
+        <div id="authSection" class="hidden flex justify-center items-center gap-4 mb-4">
+            <span id="userDisplay" class="hidden text-gray-700 font-medium"></span>
+            <button id="loginBtn" class="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-blue-700 transition duration-200 flex items-center gap-2">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12.24 10.285V14.4h6.806c-.275 1.767-2.083 5.06-6.806 5.06-4.111 0-7.468-3.423-7.468-7.646 0-4.224 3.357-7.647 7.468-7.647 2.083 0 3.813.817 5.223 2.02l3.24-3.24c-2.272-2.083-5.37-3.357-8.463-3.357C6.07 2.455 2 6.478 2 12s4.07 9.545 9.545 9.545c5.923 0 9.945-4.223 9.945-9.208 0-.69-.064-1.36-.174-2.02H12.24z"/>
+                </svg>
+                Google ဖြင့် Login ဝင်ပါ
+            </button>
+            <button id="logoutBtn" class="hidden bg-red-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-red-600 transition duration-200">
+                Logout
+            </button>
         </div>
 
-        <div id="loadingSpinner" class="hidden flex justify-center items-center py-8">
-            <div class="spinner"></div>
-            <span class="ml-3 text-gray-600">Thumbnail ရယူနေပါသည်...</span>
+        <div id="messageArea" class="hidden p-3 rounded-lg text-center font-medium mt-4"></div>
+
+        <div id="addLinkSection" class="hidden bg-gray-50 p-6 rounded-lg shadow-inner space-y-4">
+            <h3 class="text-2xl font-semibold text-gray-800">Link အသစ်ထည့်ရန်</h3>
+            <div>
+                <label for="newLinkUrl" class="block text-sm font-medium text-gray-700 mb-1">Link URL</label>
+                <input
+                    type="url"
+                    id="newLinkUrl"
+                    class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="ဥပမာ: https://www.google.com"
+                />
+            </div>
+            <div>
+                <label for="newLinkTitle" class="block text-sm font-medium text-gray-700 mb-1">Link ခေါင်းစဉ် (Optional)</label>
+                <input
+                    type="text"
+                    id="newLinkTitle"
+                    class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="ဥပမာ: Google Search Engine"
+                />
+            </div>
+            <button
+                id="addLinkBtn"
+                class="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            >
+                <span id="addLinkBtnSpinner" class="spinner-sm mr-2 hidden"></span>
+                Link ထည့်ပါ
+            </button>
         </div>
 
-        <div id="messageArea" class="w-full text-center text-sm px-4 py-2 rounded-lg transition-all duration-300 hidden"></div>
-
-        <div id="thumbnailSection" class="w-full hidden flex flex-col items-center gap-4 mt-6 fade-leave-to">
-            <h2 class="text-xl font-semibold text-gray-800">Thumbnail Preview</h2>
-            <div class="border border-gray-300 bg-gray-100 p-2 rounded-lg shadow-inner max-w-full overflow-hidden">
-                <img id="thumbnailPreview" src="" alt="YouTube Thumbnail Preview" class="max-w-full h-auto rounded-md">
+        <div class="mt-6">
+            <h3 class="text-2xl font-semibold text-gray-800 mb-4">သိမ်းဆည်းထားသော Links များ</h3>
+            <div id="linksListContainer">
+                <p id="noLinksMessage" class="text-gray-500 text-center py-8 hidden">
+                    သင်၏ links များ မရှိသေးပါ။ အပေါ်မှ ထည့်သွင်းနိုင်ပါသည်။
+                </p>
+                <div id="linksLoadingSpinner" class="flex justify-center items-center py-8 hidden">
+                    <div class="spinner"></div>
+                    <span class="ml-3 text-gray-600">Links များ ရယူနေပါသည်...</span>
+                </div>
             </div>
-            <a id="downloadThumbnailBtn" href="#" download="youtube_thumbnail.jpg" class="w-full sm:w-auto bg-green-600 text-white py-3 px-6 rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition duration-200 ease-in-out font-semibold text-center">
-                Thumbnail Download လုပ်ရန်
-            </a>
         </div>
     </div>
 
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
     <script>
-        // DOM elements များကို ရယူခြင်း
-        const youtubeLinkInput = document.getElementById('youtubeLink');
-        const thumbnailQualitySelect = document.getElementById('thumbnailQualitySelect');
+        // Global variables for Firebase and app state
+        let app;
+        let db;
+        let auth;
+        let currentUser = null;
+        let currentUserId = null;
+        let linksData = [];
+        let isLoadingLinks = true; // For links data loading
+        let isAuthLoading = true; // For initial authentication state
+        let unsubscribeFromLinks = null; // To store the Firestore unsubscribe function
+
+        // Canvas environment variables (ensure they are defined)
+        // These are provided by the Canvas environment at runtime.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // DOM references
+        const mainAppContainer = document.getElementById('mainAppContainer');
+        const authSection = document.getElementById('authSection');
+        const userDisplay = document.getElementById('userDisplay');
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
         const messageArea = document.getElementById('messageArea');
-        const thumbnailSection = document.getElementById('thumbnailSection');
-        const thumbnailPreview = document.getElementById('thumbnailPreview');
-        const downloadThumbnailBtn = document.getElementById('downloadThumbnailBtn');
-        const loadingSpinner = document.getElementById('loadingSpinner');
-        const clearInputBtn = document.getElementById('clearInputBtn');
-        const mainContainer = document.getElementById('mainContainer'); // Main UI box
-        const boxThemeSwatchesContainer = document.getElementById('boxThemeSwatches');
-        const mainBoxColorInput = document.getElementById('mainBoxColor'); // Hidden input for main box color
-        const floatingIconsContainer = document.getElementById('floatingIconsContainer'); // Container for floating icons
-
-        // Thumbnail quality များကို အမည်နှင့် file name ပါဝင်သော Object array အဖြစ် သတ်မှတ်ခြင်း
-        const thumbnailQualities = [
-            { name: 'အမြင့်ဆုံး (Max Quality - 1280x720/1920x1080)', file: 'maxresdefault' },
-            { name: 'Standard HD (640x480)', file: 'sddefault' },
-            { name: 'အရည်အသွေးမြင့် (480x360)', file: 'hqdefault' },
-            { name: 'အလယ်အလတ် (320x180)', file: 'mqdefault' },
-            { name: 'အနိမ့်ဆုံး (120x90)', file: 'default' }
-        ];
-
-        // Main container theme colors (ပိုမိုစုံလင်သော အရောင်များ)
-        const mainBoxThemeColors = [
-            '#ffffff', // White
-            '#f0f9ff', // Sky Blue (light)
-            '#fef2f2', // Red (light)
-            '#f0fdf4', // Green (light)
-            '#fdf2f8', // Pink (light)
-            '#fffbeb', // Yellow (light)
-            '#e2e8f0', // Gray (light)
-            '#dbeafe', // Blue (light)
-            '#ffe4e6', // Rose (very light)
-            '#e0f2fe', // Light Blue
-            '#dcfce7', // Light Green
-            '#fef9c3', // Light Yellow
-            '#f3e8ff', // Light Purple
-            '#fee2e2', // Light Red
-            '#ecfdf5', // Teal (very light)
-            '#fefce8', // Cream
-            '#f5f5f4', // Off-white
-            '#cffafe', // Cyan (very light)
-            '#bfdbfe', // Lighter Blue
-        ];
-
-        let debounceTimeout; // Debounce for input event
-        let currentBlobUrl = null; // Store the current Blob URL for cleanup
+        const addLinkSection = document.getElementById('addLinkSection');
+        const newLinkUrlInput = document.getElementById('newLinkUrl');
+        const newLinkTitleInput = document.getElementById('newLinkTitle');
+        const addLinkBtn = document.getElementById('addLinkBtn');
+        const addLinkBtnSpinner = document.getElementById('addLinkBtnSpinner');
+        const linksListContainer = document.getElementById('linksListContainer');
+        const mainLoadingSpinner = document.getElementById('mainLoadingSpinner');
+        const noLinksMessage = document.getElementById('noLinksMessage');
+        const linksLoadingSpinner = document.getElementById('linksLoadingSpinner');
 
         /**
-         * YouTube video URL မှ video ID ကို ထုတ်ယူပေးသော function
-         * အမျိုးမျိုးသော YouTube URL format များကို ကိုင်တွယ်နိုင်သည်
-         * @param {string} url - YouTube video URL
-         * @returns {string|null} video ID သို့မဟုတ် null (မတွေ့ပါက)
+         * Firebase ကို စတင်အသုံးပြုရန် initialize လုပ်ခြင်း။
+         * @returns {void}
          */
-        function getYouTubeVideoId(url) {
-            let videoId = null;
-            const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/;
-            const match = url.match(regex);
-            if (match && match[1]) {
-                videoId = match[1];
+        function initializeFirebase() {
+            console.log("Initializing Firebase...");
+            try {
+                app = firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                db = firebase.firestore();
+                console.log("Firebase initialized successfully. App:", app, "Auth:", auth, "DB:", db);
+
+                // Set up auth state listener immediately after initialization
+                auth.onAuthStateChanged(async (user) => {
+                    console.log("Auth state changed:", user ? user.uid : "Logged out");
+                    if (user) {
+                        currentUser = user;
+                        currentUserId = user.uid;
+                        updateMessage(`ကြိုဆိုပါတယ်, ${user.displayName || user.email || 'ဧည့်သည်အသုံးပြုသူ'}!`, 'success');
+                        fetchLinksRealtime(); // User ပြောင်းလဲသောအခါ links များကို ပြန်လည်ရယူခြင်း
+                    } else {
+                        currentUser = null;
+                        currentUserId = null;
+                        linksData = []; // User မရှိပါက links များကို ရှင်းလင်းခြင်း
+                        // Canvas environment တွင် initialAuthToken မရှိပါက anonymous sign-in ဖြင့် ဝင်ရောက်စေခြင်း
+                        if (!initialAuthToken) {
+                            console.log("No initialAuthToken, attempting anonymous sign-in...");
+                            try {
+                                const anonUserCredential = await auth.signInAnonymously();
+                                currentUser = anonUserCredential.user; // Set anonymous user
+                                currentUserId = anonUserCredential.user.uid;
+                                console.log("Signed in anonymously with UID:", currentUserId);
+                                updateMessage('ဧည့်သည်အဖြစ် ဝင်ရောက်ထားပါသည်။ links များကို အမြဲတမ်းသိမ်းဆည်းရန် Login ဝင်ပါ။', 'info');
+                                fetchLinksRealtime(); // Anonymous user အတွက် links များကို ရယူခြင်း
+                            } catch (anonError) {
+                                console.error("Anonymous sign-in failed:", anonError);
+                                updateMessage('Login မအောင်မြင်ပါ. ကျေးဇူးပြု၍ နောက်မှ ထပ်ကြိုးစားပါ။', 'error');
+                            }
+                        }
+                    }
+                    isAuthLoading = false; // Authentication process finished
+                    updateUI(); // UI ကို update လုပ်ခြင်း
+                });
+
+                // initialAuthToken ရှိပါက custom token ဖြင့် login ဝင်ရောက်ခြင်း
+                if (initialAuthToken && !auth.currentUser) {
+                    console.log("Attempting sign-in with custom token...");
+                    auth.signInWithCustomToken(initialAuthToken)
+                        .then(() => console.log("Signed in with custom token successfully."))
+                        .catch((error) => {
+                            console.error("Custom token sign-in failed:", error);
+                            isAuthLoading = false; // Ensure loading state is cleared even on custom token failure
+                            updateUI();
+                        });
+                } else if (!initialAuthToken && !auth.currentUser) {
+                    // If there's no initial token and no current user, the onAuthStateChanged listener
+                    // will handle the anonymous sign-in. We just need to ensure the loading state is cleared
+                    // if it somehow wasn't already.
+                    // This block is mostly for safety/redundancy, onAuthStateChanged should cover it.
+                    console.log("No initialAuthToken and no current user. onAuthStateChanged should handle anonymous sign-in.");
+                }
+
+            } catch (error) {
+                console.error("Firebase initialization error (catch block):", error);
+                updateMessage('Firebase initialization failed. Please check console for details.', 'error');
+                isAuthLoading = false;
+                updateUI();
             }
-            return videoId;
         }
 
         /**
-         * မက်ဆေ့ချ် box ကို ပြသသည် သို့မဟုတ် ဝှက်ထားသည်။
-         * @param {string} message - ပြသလိုသော မက်ဆေ့ချ်
-         * @param {string} type - 'error' သို့မဟုတ် 'info'
+         * Custom message box ကို ပြသသည်။ alert() သို့မဟုတ် confirm() အစားသုံးသည်။
+         * @param {string} title - မက်ဆေ့ချ် box ခေါင်းစဉ်။
+         * @param {string} msg - ပြသလိုသော မက်ဆေ့ချ်။
+         * @param {string} type - 'success', 'error', 'info', 'warning'။
+         * @param {function} onConfirm - Confirm ခလုတ်နှိပ်ပြီးနောက် လုပ်ဆောင်မည့် callback (optional)။
          */
-        function showMessageBox(message, type = 'info') {
-            messageArea.textContent = message;
-            messageArea.classList.remove('hidden', 'text-red-500', 'text-green-500', 'bg-red-100', 'bg-green-100', 'message-box-enter-from', 'message-box-leave-to');
-            messageArea.classList.add('message-box-enter-active'); // For fade-in animation
+        function showMessageBox(title, msg, type = 'info', onConfirm = null) {
+            const messageBox = document.createElement('div');
+            messageBox.className = 'fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fade-in';
+            messageBox.innerHTML = `
+                <div class="bg-white p-6 rounded-lg shadow-xl text-center max-w-sm w-full mx-4 transform animate-scale-in">
+                    <p class="text-xl font-semibold mb-3 text-gray-800">${title}</p>
+                    <p class="text-gray-600 mb-6">${msg}</p>
+                    <div class="flex justify-center gap-4">
+                        <button id="messageBoxConfirmBtn" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-200 ease-in-out">OK</button>
+                        ${onConfirm ? `<button id="messageBoxCancelBtn" class="bg-gray-300 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-400 transition duration-200 ease-in-out">Cancel</button>` : ''}
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(messageBox);
 
-            if (type === 'error') {
-                messageArea.classList.add('text-red-500', 'bg-red-100');
+            const confirmBtn = document.getElementById('messageBoxConfirmBtn');
+            confirmBtn.onclick = () => {
+                messageBox.remove();
+                if (onConfirm) onConfirm(true);
+            };
+
+            if (onConfirm) {
+                const cancelBtn = document.getElementById('messageBoxCancelBtn');
+                cancelBtn.onclick = () => {
+                    messageBox.remove();
+                    onConfirm(false);
+                };
+            }
+        }
+
+        /**
+         * UI ပေါ်ရှိ မက်ဆေ့ချ် box ကို update လုပ်ပြီး ပြသသည်။
+         * @param {string} text - ပြသလိုသော မက်ဆေ့ချ်။
+         * @param {string} type - 'success', 'error', 'info'။
+         * @returns {void}
+         */
+        function updateMessage(text, type) {
+            messageArea.textContent = text;
+            messageArea.className = `p-3 rounded-lg text-center font-medium mt-4 animate-fade-in`;
+            if (type === 'success') {
+                messageArea.classList.add('bg-green-100', 'text-green-700');
+            } else if (type === 'error') {
+                messageArea.classList.add('bg-red-100', 'text-red-700');
             } else {
-                messageArea.classList.add('text-green-500', 'bg-green-100');
+                messageArea.classList.add('bg-blue-100', 'text-blue-700');
             }
-            setTimeout(() => messageArea.classList.remove('message-box-enter-active'), 300); // Remove active class after animation
-        }
-
-        /**
-         * မက်ဆေ့ချ် box ကို ဝှက်ထားသည်။
-         */
-        function hideMessageBox() {
-            messageArea.classList.add('message-box-leave-to'); // For fade-out animation
+            messageArea.classList.remove('hidden');
+            // 5 စက္ကန့်အကြာတွင် မက်ဆေ့ချ်ကို အလိုအလျောက် ဝှက်ထားခြင်း
             setTimeout(() => {
                 messageArea.classList.add('hidden');
-                messageArea.classList.remove('message-box-leave-to');
-                messageArea.textContent = '';
-            }, 300); // Match animation duration
+            }, 5000);
         }
 
         /**
-         * ယခင် Blob URL ကို ဖျက်သိမ်းပြီး memory ကို ပြန်လည်လွတ်ပေးသည်။
+         * UI အခြေအနေများကို update လုပ်ပြီး ပြသသည်။
+         * @returns {void}
          */
-        function revokePreviousBlobUrl() {
-            if (currentBlobUrl) {
-                URL.revokeObjectURL(currentBlobUrl);
-                currentBlobUrl = null;
+        function updateUI() {
+            console.log("Updating UI. AuthLoading:", isAuthLoading, "CurrentUser:", currentUser ? currentUser.uid : "None", "LinksLoading:", isLoadingLinks);
+
+            // Main loading spinner ကို ထိန်းချုပ်ခြင်း
+            if (isAuthLoading) {
+                mainLoadingSpinner.classList.remove('hidden');
+                authSection.classList.add('hidden');
+                addLinkSection.classList.add('hidden');
+                linksListContainer.innerHTML = ''; // Clear links while authenticating
+                noLinksMessage.classList.add('hidden');
+                linksLoadingSpinner.classList.add('hidden');
+                return;
+            } else {
+                mainLoadingSpinner.classList.add('hidden');
+            }
+
+            // Authentication Section ကို update လုပ်ခြင်း
+            authSection.classList.remove('hidden');
+            if (currentUser) {
+                userDisplay.textContent = currentUser.displayName || currentUser.email || 'Guest User';
+                if (currentUser.isAnonymous) {
+                    userDisplay.textContent += ' (Guest)';
+                }
+                userDisplay.classList.remove('hidden');
+                loginBtn.classList.add('hidden');
+                logoutBtn.classList.remove('hidden');
+                addLinkSection.classList.remove('hidden'); // Show add link section for logged-in users
+            } else {
+                userDisplay.classList.add('hidden');
+                loginBtn.classList.remove('hidden');
+                logoutBtn.classList.add('hidden');
+                addLinkSection.classList.add('hidden'); // Hide add link section for logged-out users
+            }
+
+            // Link ထည့်ရန် ခလုတ်၏ loading state ကို ထိန်းချုပ်ခြင်း
+            if (addLinkBtn.dataset.action === 'adding') {
+                addLinkBtnSpinner.classList.remove('hidden');
+                addLinkBtn.disabled = true;
+            } else {
+                addLinkBtnSpinner.classList.add('hidden');
+                addLinkBtn.disabled = false;
+            }
+
+            // Links List ကို update လုပ်ခြင်း
+            if (isLoadingLinks && currentUserId) { // Show links loading spinner only if loading and user is logged in
+                linksListContainer.innerHTML = ''; // Clear previous links
+                linksLoadingSpinner.classList.remove('hidden');
+                noLinksMessage.classList.add('hidden');
+            } else if (linksData.length === 0) {
+                linksListContainer.innerHTML = ''; // Clear previous links
+                linksLoadingSpinner.classList.add('hidden');
+                noLinksMessage.classList.remove('hidden');
+                if (!currentUser) { // If no user, modify message
+                    noLinksMessage.textContent = 'Links များကို မြင်တွေ့ရန် Login ဝင်ပါ။';
+                } else {
+                    noLinksMessage.textContent = 'သင်၏ links များ မရှိသေးပါ။ အပေါ်မှ ထည့်သွင်းနိုင်ပါသည်။';
+                }
+            } else {
+                linksLoadingSpinner.classList.add('hidden');
+                noLinksMessage.classList.add('hidden');
+                linksListContainer.innerHTML = `
+                    <ul class="space-y-4">
+                        ${linksData.map(link => `
+                            <li class="bg-white p-4 rounded-lg shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center transition duration-150 hover:shadow-lg">
+                                <div class="flex-1 min-w-0 mr-4">
+                                    <a
+                                        href="${link.url}"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="text-blue-600 hover:underline font-semibold text-lg truncate block"
+                                        title="${link.title}"
+                                    >
+                                        ${link.title}
+                                    </a>
+                                    <p class="text-gray-500 text-sm truncate">${link.url}</p>
+                                    ${link.createdAt ? `<p class="text-gray-400 text-xs mt-1">သိမ်းဆည်းခဲ့သည့်အချိန်: ${new Date(link.createdAt.toDate()).toLocaleString()}</p>` : ''}
+                                </div>
+                                <button
+                                    data-id="${link.id}"
+                                    class="delete-link-btn mt-3 sm:mt-0 bg-red-500 text-white px-3 py-2 rounded-lg shadow-sm hover:bg-red-600 transition duration-200 text-sm flex-shrink-0"
+                                >
+                                    ဖျက်ရန်
+                                </button>
+                            </li>
+                        `).join('')}
+                    </ul>
+                `;
+                // Delete ခလုတ်များအတွက် Event listeners များကို ပြန်လည် attach လုပ်ခြင်း
+                document.querySelectorAll('.delete-link-btn').forEach(button => {
+                    button.addEventListener('click', (event) => {
+                        const linkId = event.target.dataset.id;
+                        handleDeleteLink(linkId);
+                    });
+                });
             }
         }
 
         /**
-         * Thumbnail ကို URL မှ စစ်ဆေးပြီး ပြသပေးသည်။
-         * @param {string} videoId - YouTube video ID
-         * @param {string} selectedQualityFile - ရွေးချယ်ထားသော quality ၏ file name (ဥပမာ: 'hqdefault')
+         * Google ဖြင့် Login ဝင်ရောက်ခြင်းကို လုပ်ဆောင်သည်။
+         * @returns {Promise<void>}
          */
-        async function updateThumbnailPreviewAndDownloadLink(videoId, selectedQualityFile) {
-            // Hide previous thumbnail and message, show loading spinner
-            thumbnailSection.classList.add('hidden', 'fade-leave-to');
-            hideMessageBox();
-            loadingSpinner.classList.remove('hidden');
-            revokePreviousBlobUrl(); // ယခင် Blob URL ကို ဖျက်သိမ်းခြင်း
+        async function handleGoogleSignIn() {
+            console.log("handleGoogleSignIn called. Auth object:", auth); // Debugging log
+            if (!auth) {
+                updateMessage('Firebase authentication service is not ready. Please wait a moment and try again.', 'error');
+                return;
+            }
+            isAuthLoading = true;
+            updateUI(); // Show loading state
+            const provider = new firebase.auth.GoogleAuthProvider();
+            try {
+                await auth.signInWithPopup(provider);
+                // onAuthStateChanged listener က UI ကို update လုပ်ပေးပါလိမ့်မည်။
+                console.log("Google Sign-In successful.");
+            } catch (error) {
+                console.error("Google Sign-In error:", error);
+                updateMessage(`Login မအောင်မြင်ပါ: ${error.message}`, 'error');
+            } finally {
+                isAuthLoading = false; // Ensure loading state is cleared
+                updateUI(); // Hide loading state
+            }
+        }
 
-            if (!videoId) {
-                showMessageBox("မှန်ကန်သော YouTube လင့်ခ် မဟုတ်ပါ။", 'error');
-                loadingSpinner.classList.add('hidden');
+        /**
+         * Logout လုပ်ဆောင်ခြင်းကို လုပ်ဆောင်သည်။
+         * @returns {Promise<void>}
+         */
+        async function handleSignOut() {
+            if (!auth) {
+                updateMessage('Firebase authentication not initialized.', 'error');
+                return;
+            }
+            isAuthLoading = true;
+            updateUI(); // Show loading state
+            try {
+                await auth.signOut();
+                // onAuthStateChanged listener က UI ကို update လုပ်ပေးပါလိမ့်မည်။
+                updateMessage('Logout အောင်မြင်ပါသည်။', 'success');
+                console.log("Signed out successfully.");
+            } catch (error) {
+                console.error("Sign-out error:", error);
+                updateMessage(`Logout မအောင်မြင်ပါ: ${error.message}`, 'error');
+            } finally {
+                isAuthLoading = false; // Ensure loading state is cleared
+                updateUI(); // Hide loading state
+            }
+        }
+
+        /**
+         * Firestore မှ links များကို real-time ရယူသည်။
+         * @returns {void}
+         */
+        function fetchLinksRealtime() {
+            if (unsubscribeFromLinks) {
+                unsubscribeFromLinks(); // ယခင် listener ကို ဖျက်သိမ်းခြင်း
+                console.log("Previous Firestore listener unsubscribed.");
+            }
+            if (!currentUserId || !db) {
+                linksData = [];
+                isLoadingLinks = false;
+                updateUI();
+                console.log("No user ID or DB not ready, links not fetched.");
                 return;
             }
 
-            // Correct YouTube thumbnail URL format
-            const thumbnailUrl = `http://img.youtube.com/vi/${videoId}/${selectedQualityFile}.jpg`;
-            console.log("Generated Thumbnail URL:", thumbnailUrl); // Debugging: Check the generated URL
+            isLoadingLinks = true;
+            updateUI(); // Show loading spinner for links list
+            console.log(`Fetching links for user: ${currentUserId}`);
+
+            const linksCollectionRef = db.collection(`artifacts/${appId}/users/${currentUserId}/links`);
+            const q = linksCollectionRef.orderBy('createdAt', 'desc');
+
+            unsubscribeFromLinks = q.onSnapshot(snapshot => {
+                console.log("Links snapshot received.");
+                linksData = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                isLoadingLinks = false;
+                updateUI(); // Update UI with fetched links
+            }, error => {
+                console.error("Error fetching links:", error);
+                updateMessage('Links များ ရယူရာတွင် အမှားအယွင်းရှိပါသည်။', 'error');
+                isLoadingLinks = false;
+                updateUI();
+            });
+        }
+
+        /**
+         * Link အသစ်တစ်ခုကို Firestore ထဲသို့ ထည့်သွင်းသည်။
+         * @returns {Promise<void>}
+         */
+        async function handleAddLink() {
+            if (!currentUserId || !db) {
+                updateMessage('User အကောင့်ဝင်ထားခြင်းမရှိပါ သို့မဟုတ် database အဆင်သင့်မဖြစ်သေးပါ။', 'error');
+                return;
+            }
+            const url = newLinkUrlInput.value.trim();
+            const title = newLinkTitleInput.value.trim();
+
+            if (!url) {
+                updateMessage('Link URL ကို ဖြည့်သွင်းပါ။', 'error');
+                newLinkUrlInput.focus();
+                return;
+            }
+
+            isLoadingLinks = true; // Set loading for links list
+            addLinkBtn.dataset.action = 'adding'; // Set action to show spinner on button
+            updateUI();
+            console.log("Adding new link...");
 
             try {
-                // Fetch the image as a Blob to enable direct download
-                const response = await fetch(thumbnailUrl);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const imageBlob = await response.blob();
-
-                // Create a Blob URL for the download link
-                currentBlobUrl = URL.createObjectURL(imageBlob);
-
-                // For preview, we can still use the direct URL or the Blob URL
-                thumbnailPreview.src = thumbnailUrl; // Using direct URL for preview is often faster
-                downloadThumbnailBtn.href = currentBlobUrl; // Use Blob URL for direct download
-                downloadThumbnailBtn.download = `youtube_thumbnail_${selectedQualityFile}.jpg`;
-
-                loadingSpinner.classList.add('hidden');
-                thumbnailSection.classList.remove('hidden', 'fade-leave-to');
-                thumbnailSection.classList.add('fade-enter-from'); // Trigger fade-in
-                setTimeout(() => thumbnailSection.classList.remove('fade-enter-from'), 10); // Small delay for transition to apply
-                hideMessageBox(); // အောင်မြင်စွာ ပြသနိုင်ပါက မက်ဆေ့ချ်ကို ဖျောက်ခြင်း
-
-            } catch (error) {
-                console.error(`Failed to load thumbnail for ${selectedQualityFile}:`, error);
-                loadingSpinner.classList.add('hidden');
-
-                // If the selected quality failed, try to load the default quality as a fallback for preview and download
-                if (selectedQualityFile !== 'default') {
-                    const fallbackThumbnailUrl = `http://img.youtube.com/vi/${videoId}/default.jpg`;
-                    try {
-                        const fallbackResponse = await fetch(fallbackThumbnailUrl);
-                        if (!fallbackResponse.ok) {
-                            throw new Error(`Fallback HTTP error! status: ${fallbackResponse.status}`);
-                        }
-                        const fallbackImageBlob = await fallbackResponse.blob();
-                        revokePreviousBlobUrl(); // Revoke any previous Blob URL before creating a new one
-                        currentBlobUrl = URL.createObjectURL(fallbackImageBlob);
-
-                        thumbnailPreview.src = fallbackThumbnailUrl;
-                        downloadThumbnailBtn.href = currentBlobUrl;
-                        downloadThumbnailBtn.download = `youtube_thumbnail_default.jpg`;
-                        thumbnailSection.classList.remove('hidden', 'fade-leave-to');
-                        thumbnailSection.classList.add('fade-enter-from');
-                        setTimeout(() => thumbnailSection.classList.remove('fade-enter-from'), 10);
-                        showMessageBox(`ရွေးချယ်ထားသော quality ကို မရရှိနိုင်ပါ။ အနိမ့်ဆုံး quality ကို ပြသထားပါသည်။`, 'info');
-                    } catch (fallbackError) {
-                        console.error("Failed to load fallback thumbnail:", fallbackError);
-                        showMessageBox("Thumbnail ရှာမတွေ့ပါ သို့မဟုတ် လင့်ခ်မှန်ကန်ကြောင်း စစ်ဆေးပါ။", 'error');
-                        thumbnailSection.classList.add('hidden');
-                    }
-                } else {
-                    showMessageBox("Thumbnail ရှာမတွေ့ပါ သို့မဟုတ် လင့်ခ်မှန်ကန်ကြောင်း စစ်ဆေးပါ။", 'error');
-                    thumbnailSection.classList.add('hidden');
-                }
-            }
-        }
-
-        /**
-         * Quality ရွေးချယ်စရာများကို Dropdown ထဲသို့ ထည့်သွင်းပေးခြင်း
-         */
-        function populateQualitySelect() {
-            thumbnailQualitySelect.innerHTML = ''; // Clear existing options
-            thumbnailQualities.forEach(quality => {
-                const option = document.createElement('option');
-                option.value = quality.file;
-                option.textContent = quality.name;
-                thumbnailQualitySelect.appendChild(option);
-            });
-            // Default အနေဖြင့် အမြင့်ဆုံး quality ကို ရွေးချယ်ထားခြင်း
-            thumbnailQualitySelect.value = thumbnailQualities[0].file;
-        }
-
-        /**
-         * Main container background color swatches များကို ဖန်တီးပေးခြင်း
-         */
-        function populateBoxThemeSwatches() {
-            boxThemeSwatchesContainer.innerHTML = '';
-            mainBoxThemeColors.forEach(color => {
-                const swatch = document.createElement('div');
-                swatch.className = 'color-swatch';
-                swatch.style.backgroundColor = color;
-                swatch.dataset.color = color;
-
-                if (mainBoxColorInput.value === color) {
-                    swatch.classList.add('selected');
-                    mainContainer.style.backgroundColor = color; // Apply initial color
-                }
-
-                swatch.addEventListener('click', () => {
-                    Array.from(boxThemeSwatchesContainer.children).forEach(s => s.classList.remove('selected'));
-                    swatch.classList.add('selected');
-                    mainBoxColorInput.value = color;
-                    mainContainer.style.backgroundColor = color; // Apply selected color
+                await db.collection(`artifacts/${appId}/users/${currentUserId}/links`).add({
+                    url: url,
+                    title: title || 'No Title',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                boxThemeSwatchesContainer.appendChild(swatch);
-            });
-        }
-
-        /**
-         * Input များကို ရှင်းလင်းပြီး UI ကို reset ပြန်လုပ်ပေးခြင်း
-         */
-        function clearInputAndResetUI() {
-            youtubeLinkInput.value = '';
-            thumbnailPreview.src = '';
-            thumbnailSection.classList.add('hidden', 'fade-leave-to');
-            hideMessageBox();
-            loadingSpinner.classList.add('hidden');
-            revokePreviousBlobUrl();
-            // Reset quality select to default
-            thumbnailQualitySelect.value = thumbnailQualities[0].file;
-            // Reset main box color to default (white)
-            mainBoxColorInput.value = mainBoxThemeColors[0];
-            mainContainer.style.backgroundColor = mainBoxThemeColors[0];
-            // Update selected class for theme swatches
-            Array.from(boxThemeSwatchesContainer.children).forEach(s => {
-                if (s.dataset.color === mainBoxThemeColors[0]) {
-                    s.classList.add('selected');
-                } else {
-                    s.classList.remove('selected');
-                }
-            });
-        }
-
-        /**
-         * Floating YouTube icons များကို ဖန်တီးပြီး animation ပေးခြင်း
-         */
-        function createFloatingIcons() {
-            const iconSvg = `
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512">
-                    <path d="M549.655 124.083c-6.281-23.65-24.787-42.207-48.284-48.427C458.787 64 288 64 288 64S117.213 64 74.629 75.656c-23.497 6.22-42.003 24.776-48.284 48.427C16 163.535 16 256 16 256s0 92.465 10.345 131.917c6.281 23.65 24.787 42.207 48.284 48.427C117.213 448 288 448 288 448s170.787 0 213.371-11.656c23.497-6.22 42.003-24.776 48.284-48.427C560 348.465 560 256 560 256s0-92.465-10.345-131.917zM272 360V152l104 104-104 104z"/>
-                </svg>
-            `; // YouTube Play Button SVG
-
-            for (let i = 0; i < 10; i++) { // Create 10 floating icons
-                const iconDiv = document.createElement('div');
-                iconDiv.className = 'floating-icon';
-                iconDiv.innerHTML = iconSvg;
-
-                // Generate random start, mid, and end points for animation (in vw/vh)
-                // Ensure they start off-screen or at edges and move across the viewport
-                const startX = (Math.random() * 150) - 25; // -25vw to 125vw
-                const startY = (Math.random() * 150) - 25; // -25vh to 125vh
-
-                const midX = (Math.random() * 150) - 25;
-                const midY = (Math.random() * 150) - 25;
-
-                const endX = (Math.random() * 150) - 25;
-                const endY = (Math.random() * 150) - 25;
-
-                const delay = Math.random() * 10; // 0 to 10 seconds delay
-                const duration = 15 + Math.random() * 10; // 15 to 25 seconds duration
-
-                iconDiv.style.setProperty('--start-x', `${startX}vw`);
-                iconDiv.style.setProperty('--start-y', `${startY}vh`);
-                iconDiv.style.setProperty('--mid-x', `${midX}vw`);
-                iconDiv.style.setProperty('--mid-y', `${midY}vh`);
-                iconDiv.style.setProperty('--end-x', `${endX}vw`);
-                iconDiv.style.setProperty('--end-y', `${endY}vh`);
-                iconDiv.style.setProperty('--duration', `${duration}s`); // Set duration as CSS variable
-                iconDiv.style.animationDelay = `${delay}s`;
-
-                floatingIconsContainer.appendChild(iconDiv);
+                newLinkUrlInput.value = '';
+                newLinkTitleInput.value = '';
+                updateMessage('Link ထည့်သွင်းခြင်း အောင်မြင်ပါသည်။', 'success');
+                newLinkUrlInput.focus(); // Focus back to URL input
+                console.log("Link added successfully.");
+            } catch (error) {
+                console.error("Error adding link:", error);
+                updateMessage(`Link ထည့်သွင်းခြင်း မအောင်မြင်ပါ: ${error.message}`, 'error');
+            } finally {
+                isLoadingLinks = false; // Reset loading for links list
+                addLinkBtn.dataset.action = ''; // Clear action
+                updateUI();
             }
         }
 
+        /**
+         * Link တစ်ခုကို Firestore မှ ဖျက်ပစ်သည်။
+         * @param {string} linkId - ဖျက်လိုသော link ၏ ID။
+         * @returns {Promise<void>}
+         */
+        async function handleDeleteLink(linkId) {
+            if (!currentUserId || !db) {
+                showMessageBox('Error', 'User အကောင့်ဝင်ထားခြင်းမရှိပါ သို့မဟုတ် database အဆင်သင့်မဖြစ်သေးပါ။');
+                return;
+            }
 
-        // Event Listeners
-
-        // YouTube Link Input တွင် စာရိုက်တိုင်း (debounce ဖြင့်) thumbnail ကို ပြသရန်
-        youtubeLinkInput.addEventListener('input', () => {
-            clearTimeout(debounceTimeout);
-            debounceTimeout = setTimeout(() => {
-                const youtubeLink = youtubeLinkInput.value.trim();
-                const videoId = getYouTubeVideoId(youtubeLink);
-                if (videoId) {
-                    const selectedQuality = thumbnailQualitySelect.value;
-                    updateThumbnailPreviewAndDownloadLink(videoId, selectedQuality);
-                } else {
-                    // Hide thumbnail and message, clear Blob URL if input is invalid/empty
-                    thumbnailSection.classList.add('hidden', 'fade-leave-to');
-                    revokePreviousBlobUrl();
-                    loadingSpinner.classList.add('hidden');
-                    if (youtubeLink) { // Only show error if there's text but it's invalid
-                        showMessageBox("မှန်ကန်သော YouTube လင့်ခ် မဟုတ်ပါ။", 'error');
-                    } else {
-                        hideMessageBox(); // Clear message if input is empty
+            showMessageBox('အတည်ပြုပါ', 'ဤ link ကို ဖျက်ရန် သေချာပါသလား?', 'warning', async (confirmed) => {
+                if (confirmed) {
+                    isLoadingLinks = true; // Set loading for links list
+                    updateUI(); // Show loading state
+                    console.log(`Deleting link: ${linkId}`);
+                    try {
+                        await db.collection(`artifacts/${appId}/users/${currentUserId}/links`).doc(linkId).delete();
+                        updateMessage('Link ဖျက်ခြင်း အောင်မြင်ပါသည်။', 'success');
+                        console.log("Link deleted successfully.");
+                    } catch (error) {
+                        console.error("Error deleting link:", error);
+                        updateMessage(`Link ဖျက်ခြင်း မအောင်မြင်ပါ: ${error.message}`, 'error');
+                    } finally {
+                        isLoadingLinks = false; // Reset loading for links list
+                        updateUI(); // Hide loading state
                     }
                 }
-            }, 500); // 500ms debounce
+            });
+        }
+
+        // Event Listeners (Ensure these are attached after DOM is ready)
+        document.addEventListener('DOMContentLoaded', () => {
+            loginBtn.addEventListener('click', handleGoogleSignIn);
+            logoutBtn.addEventListener('click', handleSignOut);
+            addLinkBtn.addEventListener('click', handleAddLink);
+
+            // Initialize Firebase when DOM is ready
+            initializeFirebase();
+
+            // Page ပိတ်သောအခါ သို့မဟုတ် refresh လုပ်သောအခါ Firestore listener ကို ရှင်းလင်းရန်
+            window.addEventListener('beforeunload', () => {
+                if (unsubscribeFromLinks) {
+                    unsubscribeFromLinks();
+                    console.log("Firestore listener unsubscribed on beforeunload.");
+                }
+            });
         });
-
-        // Quality Select ပြောင်းလဲသောအခါ thumbnail ကို ပြန်လည်ပြသရန်
-        thumbnailQualitySelect.addEventListener('change', () => {
-            const youtubeLink = youtubeLinkInput.value.trim();
-            const videoId = getYouTubeVideoId(youtubeLink);
-            if (videoId) {
-                const selectedQuality = thumbnailQualitySelect.value;
-                updateThumbnailPreviewAndDownloadLink(videoId, selectedQuality);
-            }
-        });
-
-        // Clear Input Button
-        clearInputBtn.addEventListener('click', clearInputAndResetUI);
-
-        // Page စတင် load လုပ်သောအခါ
-        window.onload = () => {
-            populateQualitySelect(); // Quality select options များကို ထည့်သွင်းခြင်း
-            populateBoxThemeSwatches(); // Main box theme swatches များကို ထည့်သွင်းခြင်း
-            createFloatingIcons(); // Floating icons များကို ဖန်တီးခြင်း
-            clearInputAndResetUI(); // Initial UI cleanup
-        };
-
-        // Page ပိတ်သောအခါ သို့မဟုတ် refresh လုပ်သောအခါ Blob URL ကို ရှင်းလင်းရန်
-        window.addEventListener('beforeunload', revokePreviousBlobUrl);
     </script>
 </body>
 </html>
